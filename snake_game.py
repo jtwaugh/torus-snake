@@ -21,13 +21,30 @@ dark_green = (0, 128, 0)
 snake_size = 10
 
 # Font
-font_style = pygame.font.SysFont(None, 50)
+end_game_font_style = pygame.font.SysFont(None, 50)
+hud_font_style = pygame.font.SysFont(None, 16)
 
 
 # Functions to display message
 def message(msg, color):
-    mesg = font_style.render(msg, True, color)
-    win.blit(mesg, [width / 6, height / 3])
+    mesg = end_game_font_style.render(msg, True, color)
+    win.blit(mesg, [width / 8, height / 3])
+
+def display_settings(speed):
+    mesg = hud_font_style.render("Snake speed: " + str(speed), True, green)
+    win.blit(mesg, [10, 10])
+
+def send_to_left(x, y, x_change, y_change, width, height, side_of_manifold, send_to_other_side=False):
+    return 0, (height - y if send_to_other_side else y), x_change, y_change, (not side_of_manifold if send_to_other_side else side_of_manifold)
+    
+def send_to_right(x, y, x_change, y_change, width, height, side_of_manifold, send_to_other_side=False):
+    return width - snake_size, (height - y if send_to_other_side else y), x_change, y_change, (not side_of_manifold if send_to_other_side else side_of_manifold)
+
+def send_to_top(x, y, x_change, y_change, width, height, side_of_manifold, send_to_other_side=False):
+    return (width - x if send_to_other_side else x), 0, x_change, y_change, (not side_of_manifold if send_to_other_side else side_of_manifold)
+    
+def send_to_bottom(x, y, x_change, y_change, width, height, side_of_manifold, send_to_other_side=False):
+    return (width - x if send_to_other_side else x), height - snake_size, x_change, y_change, (not side_of_manifold if send_to_other_side else side_of_manifold)
 
 
 def wrap(left, right, top, bottom, x, y, x_change, y_change, width, height, side_of_manifold):
@@ -38,10 +55,16 @@ def wrap(left, right, top, bottom, x, y, x_change, y_change, width, height, side
             x_change = -x_change
             y = height - y
         else:
-            x = 0
-            if right != left:
-                y = height - y
-                side_of_manifold = not side_of_manifold
+            x, y, x_change, y_change, side_of_manifold = send_to_left(
+                x, 
+                y, 
+                x_change, 
+                y_change, 
+                width, 
+                height, 
+                side_of_manifold, 
+                right != left
+            )
     elif x <= 0:
         print(f"{left=}")
         if left == "point-compactified":
@@ -49,10 +72,16 @@ def wrap(left, right, top, bottom, x, y, x_change, y_change, width, height, side
             x_change = -x_change
             y = height - y
         else:
-            x = width - snake_size
-            if right != left:
-                y = height - y
-                side_of_manifold = not side_of_manifold
+            x, y, x_change, y_change, side_of_manifold = send_to_right(
+                x, 
+                y, 
+                x_change, 
+                y_change, 
+                width, 
+                height, 
+                side_of_manifold, 
+                right != left
+            )
     if y >= height:
         print(f"{bottom=}")
         if bottom == "point-compactified":
@@ -60,10 +89,16 @@ def wrap(left, right, top, bottom, x, y, x_change, y_change, width, height, side
             x = width - x
             y_change = -y_change
         else:
-            y = 0
-            if top != bottom:
-                x = width - x
-                side_of_manifold = not side_of_manifold
+            x, y, x_change, y_change, side_of_manifold = send_to_top(
+                x, 
+                y, 
+                x_change, 
+                y_change, 
+                width, 
+                height, 
+                side_of_manifold, 
+                top != bottom
+            )
     elif y < 0:
         print(f"{top=}")
         if top == "point-compactified":
@@ -71,10 +106,16 @@ def wrap(left, right, top, bottom, x, y, x_change, y_change, width, height, side
             x = width - x
             y_change = -y_change
         else:
-            y = height
-            if top != bottom:
-                x = width - x
-                side_of_manifold = not side_of_manifold
+            x, y, x_change, y_change, side_of_manifold = send_to_bottom(
+                x, 
+                y, 
+                x_change, 
+                y_change, 
+                width, 
+                height, 
+                side_of_manifold, 
+                top != bottom
+            )
     print(f"{x=}")
     print(f"{y=}")
     print(f"{snake_size=}")
@@ -121,7 +162,7 @@ def gameLoop():
 
         while game_close == True:
             win.fill(black)
-            message("You Lost! Press Q-Quit or C-Play Again", red)
+            message("Game Over! C to play; Q to quit", red)
             pygame.display.update()
 
             for event in pygame.event.get():
@@ -240,6 +281,8 @@ def gameLoop():
                 food_side_of_manifold = side_of_manifold
 
             Length_of_snake += 1
+
+        display_settings(snake_speed)
 
         clock.tick(snake_speed)
 
