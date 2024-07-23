@@ -16,6 +16,15 @@ class Neighborhood:
         return (f"Neighborhood(x={self.x}, y={self.y}, x_change={self.x_change}, y_change={self.y_change}, side_of_manifold={self.side_of_manifold})")
 
 
+def move_neighborhood_one_tick(neighborhood):
+    return Neighborhood(
+            x=neighborhood.x + neighborhood.x_change,
+            y=neighborhood.y + neighborhood.y_change,
+            x_change=neighborhood.x_change,
+            y_change=neighborhood.y_change,
+            side_of_manifold=neighborhood.side_of_manifold
+        )
+
 
 # Initialize Pygame
 pygame.init()
@@ -127,25 +136,25 @@ def traverse_bottom_pole(neighborhood):
 
 
 def wrap(left, right, top, bottom, neighborhood):
-    if x >= width - snake_size:
+    if neighborhood.x >= width - snake_size:
         print(f"{right=}")
         if right == "point-compactified":
             neighborhood = traverse_right_pole(neighborhood)
         else:
             neighborhood = send_to_left(neighborhood, right != left)
-    elif x <= 0:
+    elif neighborhood.x <= 0:
         print(f"{left=}")
         if left == "point-compactified":
             neighborhood = traverse_left_pole(neighborhood)
         else:
             neighborhood = send_to_right(neighborhood, right != left)
-    if y >= height:
+    if neighborhood.y >= height:
         print(f"{bottom=}")
         if bottom == "point-compactified":
             neighborhood = traverse_bottom_pole(neighborhood)
         else:
             neighborhood = send_to_top(neighborhood, top != bottom)
-    elif y < 0:
+    elif neighborhood.y < 0:
         print(f"{top=}")
         if top == "point-compactified":
             neighborhood = traverse_top_pole(neighborhood)
@@ -153,6 +162,42 @@ def wrap(left, right, top, bottom, neighborhood):
             neighborhood = send_to_bottom(neighborhood, top != bottom)
     print(f"{neighborhood=}")
     print(f"{snake_size=}")
+    return neighborhood
+
+
+def modify_neighborhood_for_input(neighborhood, event):
+    if event.key == pygame.K_LEFT:
+        return Neighborhood(
+            x=neighborhood.x,
+            y=neighborhood.y,
+            x_change=-snake_size,
+            y_change=0,
+            side_of_manifold=neighborhood.side_of_manifold
+        )
+    elif event.key == pygame.K_RIGHT:
+        return Neighborhood(
+            x=neighborhood.x,
+            y=neighborhood.y,
+            x_change=snake_size,
+            y_change=0,
+            side_of_manifold=neighborhood.side_of_manifold
+        )
+    elif event.key == pygame.K_UP:
+        return Neighborhood(
+            x=neighborhood.x,
+            y=neighborhood.y,
+            x_change=0,
+            y_change=-snake_size,
+            side_of_manifold=neighborhood.side_of_manifold
+        )
+    elif event.key == pygame.K_DOWN:
+        return Neighborhood(
+            x=neighborhood.x,
+            y=neighborhood.y,
+            x_change=0,
+            y_change=snake_size,
+            side_of_manifold=neighborhood.side_of_manifold
+        )
     return neighborhood
 
 # Main function
@@ -192,6 +237,14 @@ def gameLoop():
 
     clock = pygame.time.Clock()
 
+    neighborhood = Neighborhood(
+        x=x1,
+        y=y1,
+        x_change=x1_change,
+        y_change=y1_change,
+        side_of_manifold=side_of_manifold
+    )
+
     while not game_over:
 
         while game_close == True:
@@ -211,53 +264,31 @@ def gameLoop():
             if event.type == pygame.QUIT:
                 game_over = True
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    x1_change = -snake_size
-                    y1_change = 0
-                elif event.key == pygame.K_RIGHT:
-                    x1_change = snake_size
-                    y1_change = 0
-                elif event.key == pygame.K_UP:
-                    y1_change = -snake_size
-                    x1_change = 0
-                elif event.key == pygame.K_DOWN:
-                    y1_change = snake_size
-                    x1_change = 0
-                elif event.key == pygame.K_q:
+                if event.key == pygame.K_q:
                     Length_of_snake += 10
                 elif event.key == pygame.K_e:
                     snake_speed += 5
+                else:
+                    neighborhood = modify_neighborhood_for_input(neighborhood, event)
 
-        # Wrap around conditions for torus mode on sides
-        if x1 >= width:
-            x1 = 0
-        elif x1 < 0:
-            x1 = width - snake_size
 
         # Apply wrap-around logic
-        x1, y1, x1_change, y1_change, side_of_manifold = wrap(
+        neighborhood = wrap(
             left_edge_state, 
             right_edge_state, 
             top_edge_state, 
             bottom_edge_state, 
-            x1, 
-            y1, 
-            x1_change, 
-            y1_change, 
-            width, 
-            height,
-            side_of_manifold
+            neighborhood
         )
 
-        x1 += x1_change
-        y1 += y1_change
+        neighborhood = move_neighborhood_one_tick(neighborhood)
+        
         win.fill(black)
         
-        
         snake_Head = []
-        snake_Head.append(x1)
-        snake_Head.append(y1)
-        snake_Head.append(side_of_manifold)
+        snake_Head.append(neighborhood.x)
+        snake_Head.append(neighborhood.y)
+        snake_Head.append(neighborhood.side_of_manifold)
 
         snake_List.append(snake_Head)
         if len(snake_List) > Length_of_snake:
@@ -274,7 +305,7 @@ def gameLoop():
 
         pygame.display.update()
 
-        if x1 == foodx and y1 == foody and side_of_manifold == food_side_of_manifold:
+        if neighborhood.x == foodx and neighborhood.y == foody and neighborhood.side_of_manifold == food_side_of_manifold:
             print(f"{food_edge=}")
             print(f"{food_effect=}")
 
