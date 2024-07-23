@@ -1,5 +1,21 @@
 import pygame
 import random
+from dataclasses import dataclass, field
+from typing import List, Tuple, Optional
+
+
+@dataclass
+class Neighborhood:
+    x: int
+    y: int
+    x_change: int
+    y_change: int
+    side_of_manifold: bool
+
+    def __str__(self):
+        return (f"Neighborhood(x={self.x}, y={self.y}, x_change={self.x_change}, y_change={self.y_change}, side_of_manifold={self.side_of_manifold})")
+
+
 
 # Initialize Pygame
 pygame.init()
@@ -34,92 +50,110 @@ def display_settings(speed):
     mesg = hud_font_style.render("Snake speed: " + str(speed), True, green)
     win.blit(mesg, [10, 10])
 
-def send_to_left(x, y, x_change, y_change, width, height, side_of_manifold, send_to_other_side=False):
-    return 0, (height - y if send_to_other_side else y), x_change, y_change, (not side_of_manifold if send_to_other_side else side_of_manifold)
+# Algebra
+
+def send_to_left(neighborhood, send_to_other_side=False):
+    return Neighborhood(
+        x=0,
+        y=(height - neighborhood.y if send_to_other_side else neighborhood.y), 
+        x_change=neighborhood.x_change, 
+        y_change=neighborhood.y_change, 
+        side_of_manifold=(not neighborhood.side_of_manifold if send_to_other_side else neighborhood.side_of_manifold)
+    )
     
-def send_to_right(x, y, x_change, y_change, width, height, side_of_manifold, send_to_other_side=False):
-    return width - snake_size, (height - y if send_to_other_side else y), x_change, y_change, (not side_of_manifold if send_to_other_side else side_of_manifold)
+def send_to_right(neighborhood, send_to_other_side=False):
+    return Neighborhood(
+        x=width - snake_size, 
+        y=(height - neighborhood.y if send_to_other_side else neighborhood.y), 
+        x_change=neighborhood.x_change, 
+        y_change=neighborhood.y_change, 
+        side_of_manifold=(not neighborhood.side_of_manifold if send_to_other_side else neighborhood.side_of_manifold)
+    )
 
-def send_to_top(x, y, x_change, y_change, width, height, side_of_manifold, send_to_other_side=False):
-    return (width - x if send_to_other_side else x), 0, x_change, y_change, (not side_of_manifold if send_to_other_side else side_of_manifold)
+def send_to_top(neighborhood, send_to_other_side=False):
+    return Neighborhood(
+        x=(width - neighborhood.x if send_to_other_side else neighborhood.x), 
+        y=0, 
+        x_change=neighborhood.x_change, 
+        y_change=neighborhood.y_change, 
+        side_of_manifold=(not neighborhood.side_of_manifold if send_to_other_side else neighborhood.side_of_manifold)
+    )
     
-def send_to_bottom(x, y, x_change, y_change, width, height, side_of_manifold, send_to_other_side=False):
-    return (width - x if send_to_other_side else x), height - snake_size, x_change, y_change, (not side_of_manifold if send_to_other_side else side_of_manifold)
+def send_to_bottom(neighborhood, send_to_other_side=False):
+    return Neighborhood(
+        x=(width - neighborhood.x if send_to_other_side else neighborhood.x), 
+        y=height - snake_size, 
+        x_change=neighborhood.x_change, 
+        y_change=neighborhood.y_change, 
+        side_of_manifold=(not neighborhood.side_of_manifold if send_to_other_side else neighborhood.side_of_manifold)
+    )
+
+def traverse_left_pole(neighborhood):
+    return Neighborhood(
+        x=0,
+        y=height - neighborhood.y,
+        x_change=-neighborhood.x_change,
+        y_change=neighborhood.y_change,
+        side_of_manifold=neighborhood.side_of_manifold
+    )
+
+def traverse_right_pole(neighborhood):
+    return Neighborhood(
+        x=width - snake_size,
+        y=height - neighborhood.y,
+        x_change=-neighborhood.x_change,
+        y_change=neighborhood.y_change,
+        side_of_manifold=neighborhood.side_of_manifold
+    )
 
 
-def wrap(left, right, top, bottom, x, y, x_change, y_change, width, height, side_of_manifold):
+def traverse_top_pole(neighborhood):
+    return Neighborhood(
+        x=width - neighborhood.x,
+        y=0,
+        x_change=neighborhood.x_change,
+        y_change=-neighborhood.y_change,
+        side_of_manifold=neighborhood.side_of_manifold
+    )
+
+def traverse_bottom_pole(neighborhood):
+    return Neighborhood(
+        x=width - neighborhood.x,
+        y=height - snake_size,
+        x_change=neighborhood.x_change,
+        y_change=-neighborhood.y_change,
+        side_of_manifold=neighborhood.side_of_manifold
+    )
+
+
+def wrap(left, right, top, bottom, neighborhood):
     if x >= width - snake_size:
         print(f"{right=}")
         if right == "point-compactified":
-            x = width - snake_size
-            x_change = -x_change
-            y = height - y
+            neighborhood = traverse_right_pole(neighborhood)
         else:
-            x, y, x_change, y_change, side_of_manifold = send_to_left(
-                x, 
-                y, 
-                x_change, 
-                y_change, 
-                width, 
-                height, 
-                side_of_manifold, 
-                right != left
-            )
+            neighborhood = send_to_left(neighborhood, right != left)
     elif x <= 0:
         print(f"{left=}")
         if left == "point-compactified":
-            x = 0
-            x_change = -x_change
-            y = height - y
+            neighborhood = traverse_left_pole(neighborhood)
         else:
-            x, y, x_change, y_change, side_of_manifold = send_to_right(
-                x, 
-                y, 
-                x_change, 
-                y_change, 
-                width, 
-                height, 
-                side_of_manifold, 
-                right != left
-            )
+            neighborhood = send_to_right(neighborhood, right != left)
     if y >= height:
         print(f"{bottom=}")
         if bottom == "point-compactified":
-            y = height
-            x = width - x
-            y_change = -y_change
+            neighborhood = traverse_bottom_pole(neighborhood)
         else:
-            x, y, x_change, y_change, side_of_manifold = send_to_top(
-                x, 
-                y, 
-                x_change, 
-                y_change, 
-                width, 
-                height, 
-                side_of_manifold, 
-                top != bottom
-            )
+            neighborhood = send_to_top(neighborhood, top != bottom)
     elif y < 0:
         print(f"{top=}")
         if top == "point-compactified":
-            y = 0
-            x = width - x
-            y_change = -y_change
+            neighborhood = traverse_top_pole(neighborhood)
         else:
-            x, y, x_change, y_change, side_of_manifold = send_to_bottom(
-                x, 
-                y, 
-                x_change, 
-                y_change, 
-                width, 
-                height, 
-                side_of_manifold, 
-                top != bottom
-            )
-    print(f"{x=}")
-    print(f"{y=}")
+            neighborhood = send_to_bottom(neighborhood, top != bottom)
+    print(f"{neighborhood=}")
     print(f"{snake_size=}")
-    return x, y, x_change, y_change, side_of_manifold
+    return neighborhood
 
 # Main function
 def gameLoop():
